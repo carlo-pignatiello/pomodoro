@@ -53,7 +53,6 @@ enum Message {
     SwitchMode(TimerMode),
     ToggleTimer,
     ResetTimer,
-    AdjustDuration(i64),
     EditDuration,
     DurationInputChanged(String),
     DurationInputSubmitted,
@@ -105,14 +104,6 @@ impl Pomodoro {
                 self.time_left = self.duration_for(self.mode);
                 self.is_running = false;
             }
-            Message::AdjustDuration(delta_mins) => {
-                let mode = self.mode;
-                let current = self.duration_for(mode) as i64;
-                let new_secs = (current + delta_mins * 60).max(60) as u64;
-                self.set_duration_for(mode, new_secs);
-                self.time_left = new_secs;
-                self.is_running = false;
-            }
             Message::EditDuration => {
                 self.is_running = false;
                 self.duration_input = self.time_string();
@@ -130,12 +121,11 @@ impl Pomodoro {
                 self.editing_duration = false;
             }
             Message::Tick => {
-                if self.time_left == 0 {
-                    self.completed_pomodoros += 1;
-                }
                 if self.time_left > 0 {
                     self.time_left -= 1;
-                } else {
+                }
+                if self.time_left == 0 {
+                    self.completed_pomodoros += 1;
                     self.is_running = false;
                 }
             }
@@ -182,12 +172,19 @@ impl Pomodoro {
         // Mode switcher buttons
         let make_mode_btn = |label: &'static str, mode: TimerMode| {
             let is_active = self.mode == mode;
-            button(text(label).size(14).color(if is_active {
-                Color::from_rgb8(239, 68, 68)
-            } else {
-                white
-            }))
-            .padding([8, 16])
+            button(
+                text(label)
+                    .size(16)
+                    .width(Fill)
+                    .align_x(iced::alignment::Horizontal::Center)
+                    .color(if is_active {
+                        Color::from_rgb8(239, 68, 68)
+                    } else {
+                        white
+                    }),
+            )
+            .padding([10, 18])
+            .width(Fill)
             .on_press(Message::SwitchMode(mode))
             .style(move |_theme, state| {
                 let bg_color = if is_active {
@@ -200,7 +197,7 @@ impl Pomodoro {
                 button::Style {
                     background: Some(Background::Color(bg_color)),
                     border: Border {
-                        radius: 12.0.into(),
+                        radius: 14.0.into(),
                         ..Border::default()
                     },
                     text_color: if is_active {
@@ -219,76 +216,74 @@ impl Pomodoro {
                 make_mode_btn("Short Break", TimerMode::ShortBreak),
                 make_mode_btn("Long Break", TimerMode::LongBreak),
             ]
-            .spacing(4),
+            .spacing(4)
+            .width(Fill),
         )
         .padding(4)
+        .width(Fill)
         .style(move |_theme| container::Style {
             background: Some(Background::Color(white_20)),
             border: Border {
-                radius: 16.0.into(),
+                radius: 18.0.into(),
                 ..Border::default()
             },
             ..container::Style::default()
         });
 
         // Timer card
-        let icon_str = if self.is_running { "play" } else { "stop" }; 
+        let icon_str = if self.is_running { "pause" } else { "play" };
         let play_pause_icon = fa_icon_solid(icon_str);
 
-        let play_btn = button(play_pause_icon.size(24.0).color(bg))
-            .padding([12, 20])
-            .on_press(Message::ToggleTimer)
-            .style(move |_theme, _state| button::Style {
-                background: Some(Background::Color(white)),
+        let play_btn = {
+            let b = button(play_pause_icon.size(28.0).color(bg))
+                .padding([14, 24])
+                .style(move |_theme, state| button::Style {
+                background: Some(Background::Color(
+                    if state == ButtonStatus::Disabled { white_30 } else { white },
+                )),
                 border: Border {
-                    radius: 36.0.into(),
+                    radius: 40.0.into(),
                     ..Border::default()
                 },
                 text_color: bg,
                 ..button::Style::default()
             });
+            if self.editing_duration { b } else { b.on_press(Message::ToggleTimer) }
+        };
 
-        let reset_btn = button(fa_icon_solid("rotate").size(24.0).color(white))
-            .padding([12, 20])
-            .on_press(Message::ResetTimer)
-            .style(move |_theme, _state| button::Style {
-                background: Some(Background::Color(white_20)),
-                border: Border {
-                    radius: 36.0.into(),
-                    color: white_30,
-                    width: 1.0,
-                },
-                text_color: white,
-                ..button::Style::default()
-            });
-
-        let make_adjust_btn = |label: &'static str, delta: i64| {
-            button(text(label).size(18).color(white))
-                .padding([6, 14])
-                .on_press(Message::AdjustDuration(delta))
-                .style(move |_theme, _state| button::Style {
-                    background: Some(Background::Color(white_15)),
+        let reset_btn = {
+            let b = button(fa_icon_solid("rotate").size(28.0).color(white))
+                .padding([14, 24])
+                .style(move |_theme, state| button::Style {
+                    background: Some(Background::Color(
+                        if state == ButtonStatus::Disabled { white_30 } else { white_20 },
+                    )),
                     border: Border {
-                        radius: 10.0.into(),
-                        ..Border::default()
+                        radius: 40.0.into(),
+                        color: white_30,
+                        width: 1.0,
                     },
                     text_color: white,
                     ..button::Style::default()
-                })
+                });
+            if self.editing_duration { b } else { b.on_press(Message::ResetTimer) }
         };
 
         let duration_row: Element<Message> = if self.editing_duration {
-            text_input("MM:SS or minutes", &self.duration_input)
+            text_input("MM:SS", &self.duration_input)
                 .on_input(Message::DurationInputChanged)
                 .on_submit(Message::DurationInputSubmitted)
-                .size(60)
-                .padding([8, 16])
+                .size(92)
+                .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                .width(iced::Length::Fixed(255.0))
+                .align_x(iced::alignment::Horizontal::Center)
+                .padding([0, 0])
                 .style(move |_theme, _status| ti::Style {
                     background: Background::Color(Color::TRANSPARENT),
                     border: Border {
-                        radius: 8.0.into(),
-                        color: white_30,
-                        width: 1.0,
+                        radius: 0.0.into(),
+                        color: Color::TRANSPARENT,
+                        width: 0.0,
                     },
                     icon: white_30,
                     placeholder: white_30,
@@ -297,35 +292,39 @@ impl Pomodoro {
                 })
                 .into()
         } else {
-            row![
-                make_adjust_btn("−", -1),
-                button(text(self.time_string()).size(80).color(white))
-                    .on_press(Message::EditDuration)
-                    .style(|_theme, _state| button::Style {
-                        background: None,
-                        ..button::Style::default()
-                    }),
-                make_adjust_btn("+", 1),
-            ]
-            .spacing(12)
-            .align_y(iced::Alignment::Center)
-            .into()
+            button(
+                text(self.time_string())
+                    .size(92)
+                    .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                    .color(white)
+                    .width(iced::Length::Fill)
+                    .align_x(iced::alignment::Horizontal::Center),
+            )
+                .on_press(Message::EditDuration)
+                .padding([0, 0])
+                .width(iced::Length::Fixed(255.0))
+                .style(|_theme, _state| button::Style {
+                    background: None,
+                    ..button::Style::default()
+                })
+                .into()
         };
 
         let timer_card = container(
             column![
-                text(self.mode_label()).size(20).color(white),
+                text(self.mode_label()).size(24).color(white),
                 duration_row,
-                row![play_btn, reset_btn].spacing(16),
+                row![play_btn, reset_btn].spacing(20),
             ]
-            .spacing(16)
+            .spacing(20)
             .align_x(iced::Alignment::Center),
         )
-        .padding([32, 48])
+        .padding([40, 56])
+        .width(Fill)
         .style(move |_theme| container::Style {
             background: Some(Background::Color(white_20)),
             border: Border {
-                radius: 24.0.into(),
+                radius: 28.0.into(),
                 ..Border::default()
             },
             ..container::Style::default()
@@ -336,12 +335,12 @@ impl Pomodoro {
         let dot = |filled: bool| {
             let dot_color = if filled { white } else { white_30 };
             container(text(""))
-                .width(16)
-                .height(16)
+                .width(20)
+                .height(20)
                 .style(move |_theme| container::Style {
                     background: Some(Background::Color(dot_color)),
                     border: Border {
-                        radius: 8.0.into(),
+                        radius: 10.0.into(),
                         ..Border::default()
                     },
                     ..container::Style::default()
@@ -354,23 +353,23 @@ impl Pomodoro {
             dot(self.completed_pomodoros > 2),
             dot(self.completed_pomodoros > 3),
         ]
-        .spacing(8);
+        .spacing(10);
 
         let session_section = column![
-            text("Sessions Completed").size(16).color(white),
+            text("Sessions Completed").size(18).color(white),
             dots_row,
             text(format!("Total: {} pomodoros", self.completed_pomodoros))
-                .size(14)
+                .size(16)
                 .color(white_30),
         ]
-        .spacing(12)
+        .spacing(16)
         .align_x(iced::Alignment::Center);
 
         // Main layout
         let content = column![mode_row, timer_card, session_section]
-            .spacing(32)
-            .padding([0, 24])
-            .max_width(450)
+            .spacing(40)
+            .padding([0, 28])
+            .max_width(520)
             .align_x(iced::Alignment::Center);
 
         container(
