@@ -3,6 +3,7 @@ use iced::widget::text_input as ti;
 use iced::{Background, Border, Color, Element, Fill, Subscription, time};
 use std::time::Duration;
 use iced::widget::button::Status as ButtonStatus;
+use iced_font_awesome::fa_icon_solid;
 
 fn main() -> iced::Result {
     iced::application(Pomodoro::default, Pomodoro::update, Pomodoro::view)
@@ -231,9 +232,10 @@ impl Pomodoro {
         });
 
         // Timer card
-        let play_pause_icon = if self.is_running { "⏸" } else { "▶" };
+        let icon_str = if self.is_running { "play" } else { "stop" }; 
+        let play_pause_icon = fa_icon_solid(icon_str);
 
-        let play_btn = button(text(play_pause_icon).size(24).color(bg))
+        let play_btn = button(play_pause_icon.size(24.0).color(bg))
             .padding([12, 20])
             .on_press(Message::ToggleTimer)
             .style(move |_theme, _state| button::Style {
@@ -246,7 +248,7 @@ impl Pomodoro {
                 ..button::Style::default()
             });
 
-        let reset_btn = button(text("↺").size(24).color(white))
+        let reset_btn = button(fa_icon_solid("rotate").size(24.0).color(white))
             .padding([12, 20])
             .on_press(Message::ResetTimer)
             .style(move |_theme, _state| button::Style {
