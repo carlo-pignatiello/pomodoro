@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.eelpigna.Pomodoro</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Pomodoro</name>
+  <summary>A simple Pomodoro timer</summary>
+
+  <description>
+    <p>
+      A minimal Pomodoro timer with Focus, Short Break, and Long Break modes.
+      Click the timer display to edit the duration directly.
+    </p>
+    <p>
+      Built with iced-rs as a learning project for Rust GUI development.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.eelpigna.Pomodoro.desktop</launchable>
+
+  <url type="homepage">https://github.com/carlo-pignatiello/pomodoro</url>
+  <url type="bugtracker">https://github.com/carlo-pignatiello/pomodoro/issues</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Focus mode</caption>
+      <image>https://raw.githubusercontent.com/eelpigna/pomodoro/main/images/work.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Short break mode</caption>
+      <image>https://raw.githubusercontent.com/eelpigna/pomodoro/main/images/short_break.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Long break mode</caption>
+      <image>https://raw.githubusercontent.com/eelpigna/pomodoro/main/images/long_break.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.0" date="2026-02-27">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <categories>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>pomodoro</keyword>
+    <keyword>timer</keyword>
+    <keyword>productivity</keyword>
+    <keyword>focus</keyword>
+  </keywords>
+</component>
