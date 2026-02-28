@@ -1,5 +1,4 @@
 name: CI
-
 on:
   push:
     branches: [main]
@@ -19,7 +18,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libvulkan-dev
+          sudo apt-get install -y libdbus-1-dev pkg-config libwayland-dev libxkbcommon-dev libegl1-mesa-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
