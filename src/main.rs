@@ -1,177 +1,9 @@
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::widget::text_input as ti;
-use iced::{Background, Border, Color, Element, Fill, Subscription, time};
+use iced::{Task, Background, Border, Color, Element, Fill, Subscription, time};
 use std::time::Duration;
 use iced::widget::button::Status as ButtonStatus;
 use iced_font_awesome::fa_icon_solid;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // --- parse_duration ---
-
-    #[test]
-    fn parse_minutes_only() {
-        assert_eq!(Pomodoro::parse_duration("25"), Some(25 * 60));
-    }
-
-    #[test]
-    fn parse_mm_ss() {
-        assert_eq!(Pomodoro::parse_duration("1:30"), Some(90));
-    }
-
-    #[test]
-    fn parse_trims_whitespace() {
-        assert_eq!(Pomodoro::parse_duration("  10  "), Some(10 * 60));
-        assert_eq!(Pomodoro::parse_duration(" 2 : 45 "), Some(2 * 60 + 45));
-    }
-
-    #[test]
-    fn parse_enforces_minimum_60s() {
-        assert_eq!(Pomodoro::parse_duration("0"), Some(60));
-        assert_eq!(Pomodoro::parse_duration("0:00"), Some(60));
-        assert_eq!(Pomodoro::parse_duration("0:30"), Some(60));
-    }
-
-    #[test]
-    fn parse_rejects_invalid_seconds() {
-        assert_eq!(Pomodoro::parse_duration("1:60"), None);
-        assert_eq!(Pomodoro::parse_duration("1:99"), None);
-    }
-
-    #[test]
-    fn parse_rejects_non_numeric() {
-        assert_eq!(Pomodoro::parse_duration("abc"), None);
-        assert_eq!(Pomodoro::parse_duration("1:xx"), None);
-        assert_eq!(Pomodoro::parse_duration(""), None);
-    }
-
-    // --- time_string ---
-
-    #[test]
-    fn time_string_formats_correctly() {
-        let mut p = Pomodoro::default();
-        p.time_left = 25 * 60;
-        assert_eq!(p.time_string(), "25:00");
-        p.time_left = 90;
-        assert_eq!(p.time_string(), "01:30");
-        p.time_left = 0;
-        assert_eq!(p.time_string(), "00:00");
-    }
-
-    // --- duration_for / set_duration_for ---
-
-    #[test]
-    fn duration_for_returns_correct_defaults() {
-        let p = Pomodoro::default();
-        assert_eq!(p.duration_for(TimerMode::Work), 25 * 60);
-        assert_eq!(p.duration_for(TimerMode::ShortBreak), 5 * 60);
-        assert_eq!(p.duration_for(TimerMode::LongBreak), 15 * 60);
-    }
-
-    #[test]
-    fn set_duration_for_updates_correct_field() {
-        let mut p = Pomodoro::default();
-        p.set_duration_for(TimerMode::Work, 30 * 60);
-        assert_eq!(p.work_duration, 30 * 60);
-        p.set_duration_for(TimerMode::ShortBreak, 10 * 60);
-        assert_eq!(p.short_break_duration, 10 * 60);
-        p.set_duration_for(TimerMode::LongBreak, 20 * 60);
-        assert_eq!(p.long_break_duration, 20 * 60);
-    }
-
-    // --- update ---
-
-    #[test]
-    fn toggle_timer_starts_and_stops() {
-        let mut p = Pomodoro::default();
-        assert!(!p.is_running);
-        p.update(Message::ToggleTimer);
-        assert!(p.is_running);
-        p.update(Message::ToggleTimer);
-        assert!(!p.is_running);
-    }
-
-    #[test]
-    fn reset_restores_time_and_stops() {
-        let mut p = Pomodoro::default();
-        p.time_left = 100;
-        p.is_running = true;
-        p.update(Message::ResetTimer);
-        assert_eq!(p.time_left, 25 * 60);
-        assert!(!p.is_running);
-    }
-
-    #[test]
-    fn switch_mode_changes_time_and_stops_editing() {
-        let mut p = Pomodoro::default();
-        p.is_running = true;
-        p.editing_duration = true;
-        p.update(Message::SwitchMode(TimerMode::ShortBreak));
-        assert_eq!(p.mode, TimerMode::ShortBreak);
-        assert_eq!(p.time_left, 5 * 60);
-        assert!(!p.is_running);
-        assert!(!p.editing_duration);
-    }
-
-    #[test]
-    fn edit_duration_stops_timer_and_sets_input() {
-        let mut p = Pomodoro::default();
-        p.is_running = true;
-        p.update(Message::EditDuration);
-        assert!(!p.is_running);
-        assert!(p.editing_duration);
-        assert_eq!(p.duration_input, "25:00");
-    }
-
-    #[test]
-    fn duration_input_changed_updates_string() {
-        let mut p = Pomodoro::default();
-        p.update(Message::DurationInputChanged("30:00".to_string()));
-        assert_eq!(p.duration_input, "30:00");
-    }
-
-    #[test]
-    fn duration_submitted_applies_valid_input() {
-        let mut p = Pomodoro::default();
-        p.editing_duration = true;
-        p.duration_input = "30:00".to_string();
-        p.update(Message::DurationInputSubmitted);
-        assert_eq!(p.work_duration, 30 * 60);
-        assert_eq!(p.time_left, 30 * 60);
-        assert!(!p.editing_duration);
-    }
-
-    #[test]
-    fn duration_submitted_ignores_invalid_input() {
-        let mut p = Pomodoro::default();
-        p.editing_duration = true;
-        p.duration_input = "bad".to_string();
-        p.update(Message::DurationInputSubmitted);
-        assert_eq!(p.work_duration, 25 * 60); // unchanged
-        assert!(!p.editing_duration);
-    }
-
-    #[test]
-    fn tick_decrements_time() {
-        let mut p = Pomodoro::default();
-        p.is_running = true;
-        p.update(Message::Tick);
-        assert_eq!(p.time_left, 25 * 60 - 1);
-    }
-
-    #[test]
-    fn tick_at_zero_increments_completed_and_stops() {
-        let mut p = Pomodoro::default();
-        p.time_left = 1;
-        p.is_running = true;
-        p.update(Message::Tick);
-        assert_eq!(p.time_left, 0);
-        assert_eq!(p.completed_pomodoros, 1);
-        assert!(!p.is_running);
-    }
-}
 
 fn main() -> iced::Result {
     iced::application(Pomodoro::default, Pomodoro::update, Pomodoro::view)
@@ -225,6 +57,7 @@ enum Message {
     DurationInputChanged(String),
     DurationInputSubmitted,
     Tick,
+    NotificationSent,
 }
 
 impl Pomodoro {
@@ -250,35 +83,44 @@ impl Pomodoro {
             let mins: u64 = m.trim().parse().ok()?;
             let secs: u64 = sec.trim().parse().ok()?;
             if secs >= 60 { return None; }
-            Some((mins * 60 + secs).max(60))
+            let total = mins * 60 + secs;
+            if total == 0 { return None; }
+            Some(total)
         } else {
             let mins: u64 = s.parse().ok()?;
-            Some((mins * 60).max(60))
+            let total = mins * 60;
+            if total == 0 { return None; }
+            Some(total)
         }
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::SwitchMode(mode) => {
                 self.mode = mode;
                 self.time_left = self.duration_for(mode);
                 self.is_running = false;
                 self.editing_duration = false;
+                Task::none()
             }
             Message::ToggleTimer => {
                 self.is_running = !self.is_running;
+                Task::none()
             }
             Message::ResetTimer => {
                 self.time_left = self.duration_for(self.mode);
                 self.is_running = false;
+                Task::none()
             }
             Message::EditDuration => {
                 self.is_running = false;
                 self.duration_input = self.time_string();
                 self.editing_duration = true;
+                Task::none()
             }
             Message::DurationInputChanged(s) => {
                 self.duration_input = s;
+                Task::none()
             }
             Message::DurationInputSubmitted => {
                 if let Some(secs) = Self::parse_duration(&self.duration_input) {
@@ -287,6 +129,7 @@ impl Pomodoro {
                     self.time_left = secs;
                 }
                 self.editing_duration = false;
+                Task::none()
             }
             Message::Tick => {
                 if self.time_left > 0 {
@@ -295,8 +138,23 @@ impl Pomodoro {
                 if self.time_left == 0 {
                     self.completed_pomodoros += 1;
                     self.is_running = false;
+                    Task::perform(
+                        async {
+                            std::thread::spawn(|| {
+                                notify_rust::Notification::new()
+                                    .summary("Time's up!")
+                                    .body("Take a break.")
+                                    .show()
+                                    .ok();
+                            });
+                        },
+                        |_| Message::NotificationSent,
+                    )
+                } else {
+                    Task::none()
                 }
             }
+            Message::NotificationSent => Task::none(),
         }
     }
 
@@ -554,5 +412,178 @@ impl Pomodoro {
             ..container::Style::default()
         })
         .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- parse_duration ---
+
+    #[test]
+    fn parse_minutes_only() {
+        assert_eq!(Pomodoro::parse_duration("25"), Some(25 * 60));
+    }
+
+    #[test]
+    fn parse_mm_ss() {
+        assert_eq!(Pomodoro::parse_duration("1:30"), Some(90));
+    }
+
+    #[test]
+    fn parse_trims_whitespace() {
+        assert_eq!(Pomodoro::parse_duration("  10  "), Some(10 * 60));
+        assert_eq!(Pomodoro::parse_duration(" 2 : 45 "), Some(2 * 60 + 45));
+    }
+
+    #[test]
+    fn parse_rejects_zero() {
+        assert_eq!(Pomodoro::parse_duration("0"), None);
+        assert_eq!(Pomodoro::parse_duration("0:00"), None);
+    }
+
+    #[test]
+    fn parse_sub_minute_seconds() {
+        assert_eq!(Pomodoro::parse_duration("0:02"), Some(2));
+        assert_eq!(Pomodoro::parse_duration("0:30"), Some(30));
+    }
+
+    #[test]
+    fn parse_rejects_invalid_seconds() {
+        assert_eq!(Pomodoro::parse_duration("1:60"), None);
+        assert_eq!(Pomodoro::parse_duration("1:99"), None);
+    }
+
+    #[test]
+    fn parse_rejects_non_numeric() {
+        assert_eq!(Pomodoro::parse_duration("abc"), None);
+        assert_eq!(Pomodoro::parse_duration("1:xx"), None);
+        assert_eq!(Pomodoro::parse_duration(""), None);
+    }
+
+    // --- time_string ---
+
+    #[test]
+    fn time_string_formats_correctly() {
+        let mut p = Pomodoro::default();
+        p.time_left = 25 * 60;
+        assert_eq!(p.time_string(), "25:00");
+        p.time_left = 90;
+        assert_eq!(p.time_string(), "01:30");
+        p.time_left = 0;
+        assert_eq!(p.time_string(), "00:00");
+    }
+
+    // --- duration_for / set_duration_for ---
+
+    #[test]
+    fn duration_for_returns_correct_defaults() {
+        let p = Pomodoro::default();
+        assert_eq!(p.duration_for(TimerMode::Work), 25 * 60);
+        assert_eq!(p.duration_for(TimerMode::ShortBreak), 5 * 60);
+        assert_eq!(p.duration_for(TimerMode::LongBreak), 15 * 60);
+    }
+
+    #[test]
+    fn set_duration_for_updates_correct_field() {
+        let mut p = Pomodoro::default();
+        p.set_duration_for(TimerMode::Work, 30 * 60);
+        assert_eq!(p.work_duration, 30 * 60);
+        p.set_duration_for(TimerMode::ShortBreak, 10 * 60);
+        assert_eq!(p.short_break_duration, 10 * 60);
+        p.set_duration_for(TimerMode::LongBreak, 20 * 60);
+        assert_eq!(p.long_break_duration, 20 * 60);
+    }
+
+    // --- update ---
+
+    #[test]
+    fn toggle_timer_starts_and_stops() {
+        let mut p = Pomodoro::default();
+        assert!(!p.is_running);
+        let _ = p.update(Message::ToggleTimer);
+        assert!(p.is_running);
+        let _ = p.update(Message::ToggleTimer);
+        assert!(!p.is_running);
+    }
+
+    #[test]
+    fn reset_restores_time_and_stops() {
+        let mut p = Pomodoro::default();
+        p.time_left = 100;
+        p.is_running = true;
+        let _ = p.update(Message::ResetTimer);
+        assert_eq!(p.time_left, 25 * 60);
+        assert!(!p.is_running);
+    }
+
+    #[test]
+    fn switch_mode_changes_time_and_stops_editing() {
+        let mut p = Pomodoro::default();
+        p.is_running = true;
+        p.editing_duration = true;
+        let _ = p.update(Message::SwitchMode(TimerMode::ShortBreak));
+        assert_eq!(p.mode, TimerMode::ShortBreak);
+        assert_eq!(p.time_left, 5 * 60);
+        assert!(!p.is_running);
+        assert!(!p.editing_duration);
+    }
+
+    #[test]
+    fn edit_duration_stops_timer_and_sets_input() {
+        let mut p = Pomodoro::default();
+        p.is_running = true;
+        let _ = p.update(Message::EditDuration);
+        assert!(!p.is_running);
+        assert!(p.editing_duration);
+        assert_eq!(p.duration_input, "25:00");
+    }
+
+    #[test]
+    fn duration_input_changed_updates_string() {
+        let mut p = Pomodoro::default();
+        let _ = p.update(Message::DurationInputChanged("30:00".to_string()));
+        assert_eq!(p.duration_input, "30:00");
+    }
+
+    #[test]
+    fn duration_submitted_applies_valid_input() {
+        let mut p = Pomodoro::default();
+        p.editing_duration = true;
+        p.duration_input = "30:00".to_string();
+        let _ = p.update(Message::DurationInputSubmitted);
+        assert_eq!(p.work_duration, 30 * 60);
+        assert_eq!(p.time_left, 30 * 60);
+        assert!(!p.editing_duration);
+    }
+
+    #[test]
+    fn duration_submitted_ignores_invalid_input() {
+        let mut p = Pomodoro::default();
+        p.editing_duration = true;
+        p.duration_input = "bad".to_string();
+        let _ = p.update(Message::DurationInputSubmitted);
+        assert_eq!(p.work_duration, 25 * 60); // unchanged
+        assert!(!p.editing_duration);
+    }
+
+    #[test]
+    fn tick_decrements_time() {
+        let mut p = Pomodoro::default();
+        p.is_running = true;
+        let _ = p.update(Message::Tick);
+        assert_eq!(p.time_left, 25 * 60 - 1);
+    }
+
+    #[test]
+    fn tick_at_zero_increments_completed_and_stops() {
+        let mut p = Pomodoro::default();
+        p.time_left = 1;
+        p.is_running = true;
+        let _ = p.update(Message::Tick);
+        assert_eq!(p.time_left, 0);
+        assert_eq!(p.completed_pomodoros, 1);
+        assert!(!p.is_running);
     }
 }
