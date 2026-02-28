@@ -20,6 +20,11 @@ libwayland-dev = "*"
 libxkbcommon-dev = "*"
 libegl1-mesa-dev = "*"
 
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 [dependencies]
 iced = { version = "0.14.0", features = ["tokio"] }
 iced_font_awesome = "0.4.2"
