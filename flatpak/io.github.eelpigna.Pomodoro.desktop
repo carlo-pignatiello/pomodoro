@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Pomodoro
-Comment=A simple Pomodoro timer
-Exec=pomodoro
-Icon=io.github.eelpigna.Pomodoro
-Terminal=false
-Type=Application
-Categories=Utility;
-Keywords=pomodoro;timer;focus;productivity;
